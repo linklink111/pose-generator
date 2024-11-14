@@ -32,7 +32,7 @@ export default {
 .content {
   flex: 1;
   position: relative;
-  padding-right: 250px; /* 为 ControlPanel 留出空间 */
+  padding-right: 1050px; /* 为 ControlPanel 留出更多空间 */
   background-color: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -42,7 +42,7 @@ export default {
   position: fixed;
   top: 100px; /* 距离顶部的距离 */
   right: 20px; /* 距离右侧的距离 */
-  width: 200px; /* 控制面板的宽度 */
+  width: 1000px; /* 控制面板的宽度增加 */
   background-color: #fff;
   padding: 1rem;
   border-radius: 8px;
