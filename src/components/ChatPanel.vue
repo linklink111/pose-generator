@@ -4,13 +4,9 @@
       <div class="model-selection">
         <label for="model-select">Select Model:</label>
         <select id="model-select" v-model="selectedModel">
-          <option value="comand-r-plus-08-24">Comand-R-Plus-08-24</option>
+          <option value="command-r-plus-08-2024" selected>Command-R-Plus-08-2024</option>
           <option value="chatgpt">ChatGPT</option>
         </select>
-      </div>
-      <div class="api-key-input">
-        <label for="api-key">API Key:</label>
-        <input id="api-key" v-model="apiKey" type="text" placeholder="Enter your API Key..." />
       </div>
       <div class="chat-history">
         <div v-for="(message, index) in chatHistory" :key="index" :class="['chat-message', message.role]">
@@ -32,8 +28,7 @@
       return {
         userPrompt: '',
         chatHistory: [],
-        selectedModel: 'comand-r-plus-08-24', // 默认选择的模型
-        apiKey: '' // 用户输入的 API Key
+        selectedModel: 'command-r-plus-08-2024', // 默认选择的模型
       };
     },
     methods: {
@@ -45,14 +40,20 @@
   
         // 发送用户提示到语言模型
         try {
-          const response = await generatePose(this.userPrompt, this.selectedModel, this.apiKey);
-          this.chatHistory.push({ role: 'assistant', content: JSON.stringify(response, null, 2) });
+          const responseText = await generatePose(this.userPrompt, this.selectedModel);
+          this.chatHistory.push({ role: 'assistant', content: responseText });
         } catch (error) {
           this.chatHistory.push({ role: 'assistant', content: 'Error: ' + error.message });
         }
   
         // 清空输入框
         this.userPrompt = '';
+  
+        // 自动滚动到底部
+        this.$nextTick(() => {
+          const chatHistoryContainer = this.$el.querySelector('.chat-history');
+          chatHistoryContainer.scrollTop = chatHistoryContainer.scrollHeight;
+        });
       }
     }
   };
@@ -67,26 +68,28 @@
     background-color: #fff;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    overflow-x: hidden; /* 防止横向滚动条 */
+    overflow-x: hidden;
+    /* 防止横向滚动条 */
   }
   
   h3 {
     margin-bottom: 20px;
   }
   
-  .model-selection, .api-key-input {
+  .model-selection {
     margin-bottom: 10px;
     display: flex;
     flex-direction: column;
-    width: 100%; /* 确保内容不会超出容器宽度 */
+    width: 100%;
+    /* 确保内容不会超出容器宽度 */
   }
   
-  .model-selection label, .api-key-input label {
+  .model-selection label {
     display: block;
     margin-bottom: 5px;
   }
   
-  .model-selection select, .api-key-input input {
+  .model-selection select {
     width: 100%;
     padding: 8px;
     border: 1px solid #ccc;

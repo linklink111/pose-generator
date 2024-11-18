@@ -1,21 +1,19 @@
-// src/utils/poseGenerator.js
+// @/utils/poseGenerator.js
+import axios from 'axios';
 
-// 模拟生成姿势数据
-async function generatePose(prompt) {
-    console.log(prompt)
-    // 模拟异步请求
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const examplePose = {
-          "head": { "position": [0, 1, 0], "rotation": [0, 0, 0] },
-          "leftArm": { "position": [-1, 0.5, 0], "rotation": [0, 0, 0] },
-          "rightArm": { "position": [1, 0.5, 0], "rotation": [0, 0, 0] },
-          "leftLeg": { "position": [-0.5, -1, 0], "rotation": [0, 0, 0] },
-          "rightLeg": { "position": [0.5, -1, 0], "rotation": [0, 0, 0] }
-        };
-        resolve(examplePose);
-      }, 1000);
-    });
+export default async function generatePose(prompt, model) {
+  try {
+    const response = await axios.post(
+      'http://localhost:5000/chat', // 假设Flask服务器运行在本地5000端口
+      {
+        prompt: prompt,
+        model: model,
+      }
+    );
+
+    // 返回助手的回复
+    return response.data.response;
+  } catch (error) {
+    throw new Error(`API request failed: ${error.message}`);
   }
-  
-  module.exports = generatePose;
+}
