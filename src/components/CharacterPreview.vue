@@ -8,10 +8,26 @@
 import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { computed, onMounted, watch } from 'vue';
+import { useStore } from 'vuex';
 
 export default {
+    data() {
+        return {
+            scene: null,
+            camera: null,
+            renderer: null,
+            character: null,
+        };
+    },
     mounted() {
         this.initThree();
+        // 监听窗口大小变化
+        window.addEventListener('resize', this.onWindowResize, false);
+    },
+    beforeUnmount() {
+        // 移除监听器
+        window.removeEventListener('resize', this.onWindowResize);
     },
     methods: {
         initThree() {
@@ -55,45 +71,37 @@ export default {
                 character.position.set(0, 0, 0); // 调整模型的位置
                 scene.add(character);
 
-                // 设置动画控制器
-                const mixer = new THREE.AnimationMixer(object);
-                const action = mixer.clipAction(object.animations[0]);
-                action.play();
-
                 // 获取骨架
                 const skeleton = new THREE.SkeletonHelper(character);
                 scene.add(skeleton);
-                // 操控骨架
-                function manipulateSkeleton() {
-                    if (character.skeleton) {
-                        // 访问骨骼
-                        const bones = character.skeleton.bones;
-                        for (let i = 0; i < bones.length; i++) {
-                            const bone = bones[i];
-                            // 修改骨骼的位置和旋转
-                            bone.position.y += 0.01; // 例如，稍微提高每个骨骼的高度
-                            bone.rotation.y += 0.01; // 例如，稍微旋转每个骨骼
+                // 获取模型的骨架信息
+                console.log(skeleton);
+
+                // 查找名为 "MoxamoRig1LeftArm" 的骨骼
+                function findBoneByName(bones, name) {
+                    for (let i = 0; i < bones.length; i++) {
+                        if (bones[i].name === name) {
+                            return bones[i];
                         }
                     }
+                    return null;
                 }
-                function animate() {
-                    requestAnimationFrame(animate);
-                    mixer.update(0.016); // 更新动画
-                    manipulateSkeleton(); // 操控骨架
-                    renderer.render(scene, camera);
+
+                // 获取骨骼
+                const bone = findBoneByName(skeleton.bones, 'mixamorig1LeftArm');
+
+                if (bone) {
+                    // 设置骨骼绕X轴旋转90度
+                    // 注意: 在Three.js中，角度需要以弧度为单位
+                    bone.rotation.x = Math.PI / 3; // 90度等于π/2弧度
+                } else {
+                    console.error('未能找到骨骼 "MoxamoRig1LeftArm"');
                 }
-                animate();
+
+
             });
-            // 假设角色模型已经加载完成
-            // character.traverse((child) => {
-            // if (child.isMesh) {
-            //     child.material = new THREE.MeshStandardMaterial({
-            //     color: 0xffffff, // 默认颜色
-            //     metalness: 0.5, // 金属度
-            //     roughness: 0.5  // 粗糙度
-            //     });
-            // }
-            // });
+
+
 
             // 设置相机位置
             camera.position.set(0, 10, 10);
@@ -110,23 +118,44 @@ export default {
                 renderer.render(scene, camera);
             }
             animate();
-            // 监听窗口大小变化，调整渲染器大小
-            window.addEventListener('resize', this.onWindowResize, false);
+
         },
         onWindowResize() {
+            if (!this.camera || !this.renderer) return;
+
             const container = this.$refs.canvas.parentElement;
-            const camera = this.camera;
-            const renderer = this.renderer;
 
             const aspectRatio = container.clientWidth / container.clientHeight;
-            camera.aspect = aspectRatio;
-            camera.updateProjectionMatrix();
-            renderer.setSize(container.clientWidth, container.clientHeight);
-        }
+            this.camera.aspect = aspectRatio;
+            this.camera.updateProjectionMatrix();
+            this.renderer.setSize(container.clientWidth, container.clientHeight);
+        },
     },
-    beforeUnmount() {
-        window.removeEventListener('resize', this.onWindowResize);
-    }
+    setup() {
+    const store = useStore();
+
+    const skeletonOperations = computed(() => store.state.skeletonOperations);
+
+    const applyOperation = (op) => {
+      console.log(`Operation ${op.operation} Bone name ${op.boneName} Direction ${op.direction} Quantity ${op.quantity}`);
+      // 这里应该有实际更新骨骼位置或旋转的代码
+      
+    };
+
+    watch(skeletonOperations, (newOps) => {
+      console.log('New skeleton operations:', newOps);
+      newOps.forEach(op => {
+        applyOperation(op);
+      });
+    }, { deep: true });
+
+    onMounted(() => {
+      // 初始化你的 Three.js 场景
+      console.log('Three.js component mounted');
+    });
+
+    return {};
+  }
 };
 </script>
 

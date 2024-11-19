@@ -19,32 +19,66 @@
           <input id="camera-position-z" type="number" v-model.number="cameraPositionZ" />
         </div>
       </div>
+      <div class="code-editor">
+        <label for="code-input">Code:</label>
+        <textarea id="code-input" v-model="code" rows="10" placeholder="rotate, hand, x, 90"></textarea>
+        <button @click="submitCode">Go</button>
+      </div>
     </div>
   </template>
   
   <script>
+  import { ref, watch } from 'vue';
+  import { useStore } from 'vuex';
+  
   export default {
-    data() {
-      return {
-        lightIntensity: 1.0,
-        cameraPositionX: 0,
-        cameraPositionY: 5,
-        cameraPositionZ: 10
+    setup() {
+      const store = useStore();
+  
+      const lightIntensity = ref(1.0);
+      const cameraPositionX = ref(0);
+      const cameraPositionY = ref(5);
+      const cameraPositionZ = ref(10);
+      const code = ref('rotate, hand, x, 90\n');
+  
+      const submitCode = () => {
+        const lines = code.value.split('\n').filter(line => line.trim() !== '');
+        
+        lines.forEach(line => {
+          const [operation, boneName, direction, quantity] = line.split(', ').map(s => s.trim());
+          if (operation && boneName && direction && quantity) {
+            store.commit('addOperation', { operation, boneName, direction, quantity });
+            console.log(line);
+          }
+        });
+        // 获取并打印 store 中的 skeletonOperations
+        console.log('Current skeletonOperations:', store.state.skeletonOperations);
       };
-    },
-    watch: {
-      lightIntensity(newVal) {
-        this.$emit('update-light-intensity', newVal);
-      },
-      cameraPositionX(newVal) {
-        this.$emit('update-camera-position', { x: newVal, y: this.cameraPositionY, z: this.cameraPositionZ });
-      },
-      cameraPositionY(newVal) {
-        this.$emit('update-camera-position', { x: this.cameraPositionX, y: newVal, z: this.cameraPositionZ });
-      },
-      cameraPositionZ(newVal) {
-        this.$emit('update-camera-position', { x: this.cameraPositionX, y: this.cameraPositionY, z: newVal });
-      }
+  
+      watch(lightIntensity, (newVal) => {
+        store.dispatch('updateLightIntensity', newVal);
+      });
+  
+      watch(cameraPositionX, (newVal) => {
+        store.dispatch('updateCameraPosition', { x: newVal, y: cameraPositionY.value, z: cameraPositionZ.value });
+      });
+  
+      watch(cameraPositionY, (newVal) => {
+        store.dispatch('updateCameraPosition', { x: cameraPositionX.value, y: newVal, z: cameraPositionZ.value });
+      });
+  
+      watch(cameraPositionZ, (newVal) => {
+        store.dispatch('updateCameraPosition', { x: cameraPositionX.value, y: cameraPositionY.value, z: newVal });
+      });
+  
+      return {
+        lightIntensity,
+        cameraPositionX,
+        cameraPositionY,
+        cameraPositionZ,
+        code,
+        submitCode
+      };
     }
   };
   </script>
@@ -79,5 +113,19 @@
     padding: 5px;
     border: 1px solid #ccc;
     border-radius: 5px;
+  }
+  
+  .code-editor {
+    margin-top: 20px;
+  }
+  
+  textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-family: monospace;
+    font-size: 14px;
+    resize: vertical; /* 允许垂直调整大小 */
   }
   </style>

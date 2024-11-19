@@ -27,7 +27,7 @@
     justify-content: space-between;
     align-items: flex-start;
     width: 100%; /* 将宽度设置为100%，以充分利用可用空间 */
-    height: 400px;
+    height: 500px;
     border: 1px solid #ccc;
     padding: 10px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
