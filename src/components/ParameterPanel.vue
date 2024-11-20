@@ -21,7 +21,10 @@
       </div>
       <div class="code-editor">
         <label for="code-input">Code:</label>
-        <textarea id="code-input" v-model="code" rows="10" placeholder="rotate, hand, x, 90"></textarea>
+        <textarea id="code-input" v-model="code" rows="10" placeholder="rotate, mixamorig1LeftArm, x, 60"></textarea>
+        
+        <button @click="resetCode">Reset</button>
+        <button @click="saveCode">Save</button>
         <button @click="submitCode">Go</button>
       </div>
     </div>
@@ -39,10 +42,12 @@
       const cameraPositionX = ref(0);
       const cameraPositionY = ref(5);
       const cameraPositionZ = ref(10);
-      const code = ref('rotate, hand, x, 90\n');
+      const code = ref('rotate, mixamorig1LeftArm, x, 60\n');
   
       const submitCode = () => {
         const lines = code.value.split('\n').filter(line => line.trim() !== '');
+        // 清空之前的操作
+        store.commit('clearOperations');
         
         lines.forEach(line => {
           const [operation, boneName, direction, quantity] = line.split(', ').map(s => s.trim());
