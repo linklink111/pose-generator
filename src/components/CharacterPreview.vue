@@ -19,6 +19,7 @@ export default {
         const camera = shallowRef(null);
         const renderer = shallowRef(null);
         const character = shallowRef(null);
+        const initialRotations = {}; // 用于存储初始旋转值
 
         const skeletonOperations = computed(() => store.state.skeletonOperations);
 
@@ -62,6 +63,8 @@ export default {
                 // 获取骨架
                 const skeleton = new THREE.SkeletonHelper(character.value);
                 scene.value.add(skeleton);
+                // 记录初始旋转值
+                saveInitialRotations(character.value);
             });
 
             // 设置相机位置
@@ -100,6 +103,10 @@ export default {
                 console.log(`Operation ${op.operation} Bone name ${op.boneName} Direction ${op.direction} Quantity ${op.quantity}`);
 
                 switch (op.operation.toLowerCase()) {
+                    case 'reset':
+                        // 遍历所有骨骼并重置其旋转到T姿势
+                        resetBonesToTPose(character.value);
+                        break;
                     case 'translate': // 移动
                         switch (op.direction.toLowerCase()) {
                             case 'x':
@@ -141,6 +148,33 @@ export default {
             } else {
                 console.error(`Bone with name ${op.boneName} not found.`);
             }
+        };
+
+        const saveInitialRotations = (object) => {
+            if (object.isBone) {
+                initialRotations[object.name] = {
+                    x: object.rotation.x,
+                    y: object.rotation.y,
+                    z: object.rotation.z
+                };
+            }
+
+            object.children.forEach(child => {
+                saveInitialRotations(child);
+            });
+        };
+
+        const resetBonesToTPose = (object) => {
+            if (object.isBone) {
+                const initialRotation = initialRotations[object.name];
+                if (initialRotation) {
+                    object.rotation.set(initialRotation.x, initialRotation.y, initialRotation.z);
+                }
+            }
+
+            object.children.forEach(child => {
+                resetBonesToTPose(child);
+            });
         };
 
         const findBoneByName = (object, name) => {

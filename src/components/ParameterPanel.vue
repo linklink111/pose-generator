@@ -23,7 +23,7 @@
         <label for="code-input">Code:</label>
         <textarea id="code-input" v-model="code" rows="10" placeholder="rotate, mixamorig1LeftArm, x, 60"></textarea>
         
-        <button @click="resetCode">Reset</button>
+        <button @click="resetPose">Reset</button>
         <button @click="saveCode">Save</button>
         <button @click="submitCode">Go</button>
       </div>
@@ -59,6 +59,17 @@
         // 获取并打印 store 中的 skeletonOperations
         console.log('Current skeletonOperations:', store.state.skeletonOperations);
       };
+
+      const resetPose = () => {
+            // 清空之前的操作
+            store.commit('clearOperations');
+
+            // 添加重置操作到store
+            store.commit('addOperation', { operation: 'reset', boneName: 'mixamorig1Head', direction: '', quantity: '' });
+
+            // 获取并打印 store 中的 skeletonOperations
+            console.log('Current skeletonOperations after reset:', store.state.skeletonOperations);
+        };
   
       watch(lightIntensity, (newVal) => {
         store.dispatch('updateLightIntensity', newVal);
@@ -82,7 +93,8 @@
         cameraPositionY,
         cameraPositionZ,
         code,
-        submitCode
+        submitCode,
+        resetPose
       };
     }
   };

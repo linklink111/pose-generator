@@ -41,6 +41,7 @@
         // 发送用户提示到语言模型
         try {
           const responseText = await generatePose(this.userPrompt, this.selectedModel);
+          console.log('Response from language model:', responseText);
           this.chatHistory.push({ role: 'assistant', content: responseText });
         } catch (error) {
           this.chatHistory.push({ role: 'assistant', content: 'Error: ' + error.message });
@@ -109,14 +110,17 @@
     margin-bottom: 10px;
     padding: 8px;
     border-radius: 4px;
+    white-space: pre-wrap; /* 保留空白符序列，但是正常地进行换行处理 */
   }
   
   .chat-message.user {
     background-color: #e6f7ff;
+    text-align: left; /* 左对齐 */
   }
   
   .chat-message.assistant {
     background-color: #f7f7f7;
+    text-align: left; /* 左对齐 */
   }
   
   .input-container {
