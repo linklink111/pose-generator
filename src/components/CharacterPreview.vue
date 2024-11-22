@@ -10,6 +10,8 @@ import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { computed, onMounted, onBeforeUnmount, shallowRef, markRaw, watch } from 'vue';
 import { useStore } from 'vuex';
+import { IK, IKChain, IKJoint } from 'three-ik';
+
 
 export default {
     setup() {
@@ -65,6 +67,58 @@ export default {
                 scene.value.add(skeleton);
                 // 记录初始旋转值
                 saveInitialRotations(character.value);
+
+                // 创建 IK 系统
+                const ik = new IK();
+                const ikChain = new IKChain();
+
+                // 找到骨骼
+                const handBone = findBoneByName(character.value, 'mixamorig1RightHand');
+                const forearmBone = findBoneByName(character.value, 'mixamorig1RightForeArm');
+                const armBone = findBoneByName(character.value, 'mixamorig1RightArm');
+
+                if (handBone && forearmBone && armBone) {
+                    const target = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.1, 16, 16),
+                        new THREE.MeshBasicMaterial({ color: 0xff0000 })
+                    );
+                    scene.value.add(target); // 将 target 添加到场景
+                    // 创建 IK Joint
+                    const armJoint = new IKJoint(armBone, { constraints: [{ type: 'HINGE', axis: new THREE.Vector3(1, 0, 0) }] });
+                    const forearmJoint = new IKJoint(forearmBone, { constraints: [{ type: 'HINGE', axis: new THREE.Vector3(1, 0, 0) }] });
+                    const handJoint = new IKJoint(handBone,{ target });
+
+                    // 添加到链中
+                    ikChain.add(armJoint);
+                    ikChain.add(forearmJoint);
+                    ikChain.add(handJoint);
+                    // 为链设置名称
+                    // 添加到链后，为其设置自定义数据
+                    ikChain.userData = { name: 'RightHand', target };
+
+                    // 获取末端骨骼
+                    const endBone = findBoneByName(character.value, 'mixamorig1RightHand');
+                    if (endBone) {
+                        const endBoneWorldPosition = new THREE.Vector3();
+                        endBone.getWorldPosition(endBoneWorldPosition);
+
+                        // 设置 target 的位置为末端骨骼的位置
+                        target.position.copy(endBoneWorldPosition);
+                    }
+
+                    scene.value.add(target);
+
+                    // 将链添加到 IK 系统
+                    ik.add(ikChain);
+
+                    // 添加到场景
+                    scene.value.add(ik.getRootBone());
+
+                    // 存储 IK 系统
+                    character.value.ik = ik;
+                } else {
+                    console.error('Failed to find required bones for IK.');
+                }
             });
 
             // 设置相机位置
@@ -97,56 +151,103 @@ export default {
         };
 
         const applyOperation = (op) => {
-            const bone = findBoneByName(character.value, op.boneName);
+            const ik = character.value?.ik; // 获取 IK 系统
 
-            if (bone) {
-                console.log(`Operation ${op.operation} Bone name ${op.boneName} Direction ${op.direction} Quantity ${op.quantity}`);
-
-                switch (op.operation.toLowerCase()) {
-                    case 'reset':
-                        // 遍历所有骨骼并重置其旋转到T姿势
-                        resetBonesToTPose(character.value);
-                        break;
-                    case 'translate': // 移动
-                        switch (op.direction.toLowerCase()) {
-                            case 'x':
-                                bone.position.x += op.quantity;
-                                break;
-                            case 'y':
-                                bone.position.y += op.quantity;
-                                break;
-                            case 'z':
-                                bone.position.z += op.quantity;
-                                break;
-                            default:
-                                console.error('Invalid direction for translate operation.');
-                        }
-                        break;
-
-                    case 'rotate': // 旋转
-                        switch (op.direction.toLowerCase()) {
-                            case 'x':
-                                bone.rotation.x += op.quantity* (Math.PI / 180);
-                                break;
-                            case 'y':
-                                bone.rotation.y += op.quantity* (Math.PI / 180);
-                                break;
-                            case 'z':
-                                bone.rotation.z += op.quantity* (Math.PI / 180);
-                                break;
-                            default:
-                                console.error('Invalid direction for rotate operation.');
-                        }
-                        break;
-
-                    default:
-                        console.error('Invalid operation type.');
+            if (op.operation.toLowerCase() === 'ikmove') {
+                if (!ik) {
+                    console.error('IK system not initialized.');
+                    return;
                 }
+
+                const chainName = op.boneName; // 获取链的名称
+                const direction = op.direction.toLowerCase();
+                const quantity = op.quantity;
+
+                const chain = ik.chains.find(c => c.userData.name === chainName);
+                if (!chain) {
+                    console.error(`IK chain ${chainName} not found.`);
+                    return;
+                }
+
+                // 获取目标点
+                const target = chain.userData.target;
+                if (!target) {
+                    console.error(`Target for IK chain ${chainName} not set.`);
+                    return;
+                }
+
+                // 更新目标位置
+                switch (direction) {
+                    case 'x':
+                        target.x += quantity;
+                        break;
+                    case 'y':
+                        target.y += quantity;
+                        break;
+                    case 'z':
+                        target.z += quantity;
+                        break;
+                    default:
+                        console.error(`Invalid direction ${direction} for ikmove.`);
+                        return;
+                }
+
+                // 更新 IK 系统
+                ik.solve(); // 解决 IK
 
                 // 更新场景
                 renderer.value.render(scene.value, camera.value);
             } else {
-                console.error(`Bone with name ${op.boneName} not found.`);
+                // 处理其他操作类型
+                const bone = findBoneByName(character.value, op.boneName);
+
+                if (bone) {
+                    console.log(`Operation ${op.operation} Bone name ${op.boneName} Direction ${op.direction} Quantity ${op.quantity}`);
+
+                    switch (op.operation.toLowerCase()) {
+                        case 'reset':
+                            resetBonesToTPose(character.value);
+                            break;
+                        case 'translate': // 移动
+                            switch (op.direction.toLowerCase()) {
+                                case 'x':
+                                    bone.position.x += op.quantity;
+                                    break;
+                                case 'y':
+                                    bone.position.y += op.quantity;
+                                    break;
+                                case 'z':
+                                    bone.position.z += op.quantity;
+                                    break;
+                                default:
+                                    console.error('Invalid direction for translate operation.');
+                            }
+                            break;
+
+                        case 'rotate': // 旋转
+                            switch (op.direction.toLowerCase()) {
+                                case 'x':
+                                    bone.rotation.x += op.quantity * (Math.PI / 180);
+                                    break;
+                                case 'y':
+                                    bone.rotation.y += op.quantity * (Math.PI / 180);
+                                    break;
+                                case 'z':
+                                    bone.rotation.z += op.quantity * (Math.PI / 180);
+                                    break;
+                                default:
+                                    console.error('Invalid direction for rotate operation.');
+                            }
+                            break;
+
+                        default:
+                            console.error('Invalid operation type.');
+                    }
+
+                    renderer.value.render(scene.value, camera.value);
+                } else {
+                    console.error(`Bone with name ${op.boneName} not found.`);
+                }
             }
         };
 
