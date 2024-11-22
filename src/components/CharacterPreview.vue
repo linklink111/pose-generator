@@ -79,10 +79,20 @@ export default {
 
                 if (handBone && forearmBone && armBone) {
                     const target = new THREE.Mesh(
-                        new THREE.SphereGeometry(0.1, 16, 16),
+                        new THREE.SphereGeometry(1, 16, 16),
                         new THREE.MeshBasicMaterial({ color: 0xff0000 })
                     );
                     scene.value.add(target); // 将 target 添加到场景
+                    // 获取末端骨骼
+                    const endBone = findBoneByName(character.value, 'mixamorig1RightHand');
+                    if (endBone) {
+                        const endBoneWorldPosition = new THREE.Vector3();
+                        endBone.getWorldPosition(endBoneWorldPosition);
+
+                        // 设置 target 的位置为末端骨骼的位置
+                        target.position.copy(endBoneWorldPosition);
+                    }
+                    // target.position.set(1, 1, 1);
                     // 创建 IK Joint
                     const armJoint = new IKJoint(armBone, { constraints: [{ type: 'HINGE', axis: new THREE.Vector3(1, 0, 0) }] });
                     const forearmJoint = new IKJoint(forearmBone, { constraints: [{ type: 'HINGE', axis: new THREE.Vector3(1, 0, 0) }] });
@@ -95,18 +105,9 @@ export default {
                     // 为链设置名称
                     // 添加到链后，为其设置自定义数据
                     ikChain.userData = { name: 'RightHand', target };
-
-                    // 获取末端骨骼
-                    const endBone = findBoneByName(character.value, 'mixamorig1RightHand');
-                    if (endBone) {
-                        const endBoneWorldPosition = new THREE.Vector3();
-                        endBone.getWorldPosition(endBoneWorldPosition);
-
-                        // 设置 target 的位置为末端骨骼的位置
-                        target.position.copy(endBoneWorldPosition);
-                    }
-
                     scene.value.add(target);
+                    // ik.update(); 加这个会导致后面的代码都不执行
+                    ik.solve();
 
                     // 将链添加到 IK 系统
                     ik.add(ikChain);
@@ -114,8 +115,9 @@ export default {
                     // 添加到场景
                     scene.value.add(ik.getRootBone());
 
-                    // 存储 IK 系统
+                    console.log('IK system initialized:', ik);
                     character.value.ik = ik;
+                    console.log('Character IK system:', character.value?.ik);
                 } else {
                     console.error('Failed to find required bones for IK.');
                 }
