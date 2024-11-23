@@ -8,6 +8,7 @@
 import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { CCDIKSolver, CCDIKHelper } from 'three/examples/jsm/animation/CCDIKSolver.js';
 import { computed, onMounted, onBeforeUnmount, shallowRef, markRaw, watch } from 'vue';
 import { useStore } from 'vuex';
 
@@ -20,6 +21,7 @@ export default {
         const renderer = shallowRef(null);
         const character = shallowRef(null);
         const initialRotations = {}; // 用于存储初始旋转值
+        const IKSolver = shallowRef(null);
 
         const skeletonOperations = computed(() => store.state.skeletonOperations);
 
@@ -65,6 +67,9 @@ export default {
                 scene.value.add(skeleton);
                 // 记录初始旋转值
                 saveInitialRotations(character.value);
+
+                // 设置 IK 解算器
+                setupIKSolver();
             });
 
             // 设置相机位置
@@ -81,6 +86,10 @@ export default {
                 requestAnimationFrame(animate);
                 controls.update(); // 更新轨道控制
                 renderer.value.render(scene.value, camera.value);
+
+                if (IKSolver.value) {
+                    IKSolver.value.update();
+                }
             };
             animate();
         };
@@ -126,13 +135,13 @@ export default {
                     case 'rotate': // 旋转
                         switch (op.direction.toLowerCase()) {
                             case 'x':
-                                bone.rotation.x += op.quantity* (Math.PI / 180);
+                                bone.rotation.x += op.quantity * (Math.PI / 180);
                                 break;
                             case 'y':
-                                bone.rotation.y += op.quantity* (Math.PI / 180);
+                                bone.rotation.y += op.quantity * (Math.PI / 180);
                                 break;
                             case 'z':
-                                bone.rotation.z += op.quantity* (Math.PI / 180);
+                                bone.rotation.z += op.quantity * (Math.PI / 180);
                                 break;
                             default:
                                 console.error('Invalid direction for rotate operation.');
@@ -191,6 +200,39 @@ export default {
             }
 
             return null;
+        };
+
+        const setupIKSolver = () => {
+            const rightHand = findBoneByName(character.value, 'mixamorig1RightHand');
+            const rightArm = findBoneByName(character.value, 'mixamorig1RightArm');
+            const rightForeArm = findBoneByName(character.value, 'mixamorig1RightForeArm');
+
+            if (rightHand && rightArm && rightForeArm) {
+                const iks = [
+                    {
+                        target: rightHand, // 目标骨骼
+                        effector: rightHand, // 效果器骨骼
+                        links: [
+                            {
+                                index: rightForeArm, // 右前臂
+                                rotationMin: new THREE.Vector3(-1.57, -1.57, -1.57),
+                                rotationMax: new THREE.Vector3(1.57, 1.57, 1.57)
+                            },
+                            {
+                                index: rightArm, // 右上臂
+                                rotationMin: new THREE.Vector3(-1.57, -1.57, -1.57),
+                                rotationMax: new THREE.Vector3(1.57, 1.57, 1.57)
+                            }
+                        ]
+                    }
+                ];
+
+                IKSolver.value = new CCDIKSolver(character.value, iks);
+                const ccdikhelper = new CCDIKHelper(character.value, iks, 0.01);
+                scene.value.add(ccdikhelper);
+            } else {
+                console.error('未能找到所需的骨骼');
+            }
         };
 
         watch(skeletonOperations, (newOps) => {
