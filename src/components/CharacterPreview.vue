@@ -6,10 +6,10 @@
 
 <script>
 import * as THREE from 'three';
-import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { CCDIKSolver, CCDIKHelper } from 'three/examples/jsm/animation/CCDIKSolver.js';
-import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
+import {TransformControls} from 'three/examples/jsm/controls/TransformControls.js';
 import { computed, onMounted, onBeforeUnmount, shallowRef, markRaw, watch } from 'vue';
 import { useStore } from 'vuex';
 
@@ -23,7 +23,6 @@ export default {
         const character = shallowRef(null);
         const initialRotations = {}; // 用于存储初始旋转值
         const IKSolver = shallowRef(null);
-        const transformControls = shallowRef(null);
         const orbitControls = shallowRef(null); // 定义 orbitControls 变量
 
         const skeletonOperations = computed(() => store.state.skeletonOperations);
@@ -57,12 +56,14 @@ export default {
             directionalLight.position.set(10, 10, 10).normalize();
             scene.value.add(directionalLight);
 
+
+
             // 加载角色模型
-            const fbxLoader = new FBXLoader();
-            fbxLoader.load('/models/Ch36_nonPBR.fbx', (object) => {
-                character.value = markRaw(object);
-                character.value.scale.set(0.05, 0.05, 0.05); // 调整模型的缩放比例
-                character.value.position.set(0, 0, 0); // 调整模型的位置
+            const gltfLoader = new GLTFLoader();
+            gltfLoader.load('/models/character.glb', (object) => {
+                character.value = markRaw(object.scene);
+                character.value.scale.set(4, 4, 4); // 调整模型的缩放比例
+                // character.value.position.set(0, 0, 0); // 调整模型的位置
                 scene.value.add(character.value);
                 // 获取骨架
                 const skeleton = new THREE.SkeletonHelper(character.value);
@@ -70,39 +71,23 @@ export default {
                 // 记录初始旋转值
                 saveInitialRotations(character.value);
 
+                const rightHandBone = character.value.getObjectByName('mixamorig1RightHandTarget');
+                console.log(rightHandBone);
 
                 // 设置 IK 解算器
                 setupIKSolver();
 
                 // 创建 TransformControls
-                transformControls.value = new TransformControls(camera.value, renderer.value.domElement);
-                transformControls.value.size = 1.5; // 增大控制器的大小
-                transformControls.value.showX = true;
-                transformControls.value.showY = true;
-                transformControls.value.showZ = true;
-
-                // 找到目标骨骼并附加 TransformControls
-                const rightHand = findBoneByName(character.value, 'mixamorig1RightHand');
-                if (rightHand) {
-                    transformControls.value.attach(rightHand);
-                }
-
-                // 添加事件监听器
-                transformControls.value.addEventListener('change', () => {
-                    if (IKSolver.value) {
-                        IKSolver.value.update();
-                    }
-                });
-
-                transformControls.value.addEventListener('mouseDown', () => {
-                    orbitControls.value.enabled = false;
-                });
-
-                transformControls.value.addEventListener('mouseUp', () => {
-                    orbitControls.value.enabled = true;
-                });
+                const transformControls = new TransformControls(camera.value, renderer.value.domElement);
+                transformControls.size = 0.75;
+                transformControls.space = 'world';
+                transformControls.attach(rightHandBone);
+                scene.value.add(transformControls.getHelper());
+                // disable orbitControls while using transformControls
+                transformControls.addEventListener( 'mouseDown', () => orbitControls.value.enabled = false );
+                transformControls.addEventListener( 'mouseUp', () => orbitControls.value.enabled = true );
             });
-
+            
             // 设置相机位置
             camera.value.position.set(0, 10, 10);
             camera.value.lookAt(new THREE.Vector3(0, 10, 10));
@@ -116,11 +101,13 @@ export default {
             const animate = () => {
                 requestAnimationFrame(animate);
                 orbitControls.value.update(); // 更新轨道控制
-                renderer.value.render(scene.value, camera.value);
-
+                
+                // console.log(IKSolver.value);
                 if (IKSolver.value) {
                     IKSolver.value.update();
+                    // console.log("IKSolver updated")
                 }
+                renderer.value.render(scene.value, camera.value);
             };
             animate();
         };
@@ -143,6 +130,22 @@ export default {
                 console.log(`Operation ${op.operation} Bone name ${op.boneName} Direction ${op.direction} Quantity ${op.quantity}`);
 
                 switch (op.operation.toLowerCase()) {
+                    case 'move':
+                        // 移动骨骼
+                        switch (op.direction.toLowerCase()) {
+                            case 'x':
+                                bone.position.x += op.quantity;
+                                break;
+                            case 'y':
+                                bone.position.y += op.quantity;
+                                break;
+                            case 'z':
+                                bone.position.z += op.quantity;
+                                break;
+                            default:
+                                console.error('Invalid direction for move operation.');
+                        }
+                        break;
                     case 'reset':
                         // 遍历所有骨骼并重置其旋转到T姿势
                         resetBonesToTPose(character.value);
@@ -234,25 +237,6 @@ export default {
         };
 
         const setupIKSolver = () => {
-            const iks = [
-                {
-                    target: 36, // 目标骨骼：右手
-                    effector: 36, // 效果器骨骼
-                    links: [
-                        {
-                            index: 35, // 右前臂
-                            rotationMin: new THREE.Vector3(-1.57, -1.57, -1.57),
-                            rotationMax: new THREE.Vector3(1.57, 1.57, 1.57)
-                        },
-                        {
-                            index: 31, // 右上臂
-                            rotationMin: new THREE.Vector3(-1.57, -1.57, -1.57),
-                            rotationMax: new THREE.Vector3(1.57, 1.57, 1.57)
-                        }
-                    ]
-                }
-            ];
-            // 遍历加载的模型，查找 SkinnedMesh 和 Skeleton
             let mesh = null;
             character.value.traverse((child) => {
                 if (child.isSkinnedMesh) {
@@ -266,8 +250,39 @@ export default {
                     scene.value.add(skeletonHelper);
                 }
             });
+
+            // 创建一个球体并attach到右手骨骼上(index 36)
+            // const sphereGeometry = new THREE.SphereGeometry(0.1, 32, 32);
+            // const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            // const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+            // sphere.position.set(0, 0, 0); // 设置球体的初始位置为右手骨骼的位置
+            // scene.value.add(sphere);
+
+            // 设置IK解算器
+            const iks = [
+                {
+                    target: 65, // 目标骨骼：右手
+                    effector: 34, // 效果器骨骼
+                    links: [
+                        {
+                            index: 33, // 右前臂
+                            rotationMin: new THREE.Vector3(-1.57, -1.57, -1.57),
+                            rotationMax: new THREE.Vector3(1.57, 1.57, 1.57)
+                        },
+                        {
+                            index: 32, // 右上臂
+                            rotationMin: new THREE.Vector3(-1.57, -1.57, -1.57),
+                            rotationMax: new THREE.Vector3(1.57, 1.57, 1.57)
+                        }
+                    ]
+                }
+            ];
+            
+            // 遍历加载的模型，查找 SkinnedMesh 和 Skeleton
+            scene.value.add(mesh);
+            // scene.value.add(mesh.skeleton.bones[0]);
             IKSolver.value = new CCDIKSolver(mesh, iks);
-            const ccdikhelper = new CCDIKHelper(mesh, iks, 0.01);
+            const ccdikhelper = new CCDIKHelper(mesh, iks, 0.1);
             scene.value.add(ccdikhelper);
         };
 
