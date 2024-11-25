@@ -23,6 +23,9 @@ export default {
         const character = shallowRef(null);
         const initialRotations = {}; // 用于存储初始旋转值
         const IKSolver = shallowRef(null);
+        const LeftArmIKSolver = shallowRef(null);
+        const LeftLegIKSolver = shallowRef(null);
+        const RightLegIKSolver = shallowRef(null);
         const orbitControls = shallowRef(null); // 定义 orbitControls 变量
 
         const skeletonOperations = computed(() => store.state.skeletonOperations);
@@ -72,6 +75,10 @@ export default {
                 saveInitialRotations(character.value);
 
                 const rightHandBone = character.value.getObjectByName('mixamorig1RightHandTarget');
+                const leftHandBone = character.value.getObjectByName('mixamorig1LeftHandTarget');
+                const rightFootBone = character.value.getObjectByName('mixamorig1RightFootTarget');
+                const leftFootBone = character.value.getObjectByName('mixamorig1LeftFootTarget');
+
                 console.log(rightHandBone);
 
                 // 设置 IK 解算器
@@ -86,6 +93,38 @@ export default {
                 // disable orbitControls while using transformControls
                 transformControls.addEventListener( 'mouseDown', () => orbitControls.value.enabled = false );
                 transformControls.addEventListener( 'mouseUp', () => orbitControls.value.enabled = true );
+
+                // 创建 TransformControls
+                const transformControls_leftHand = new TransformControls(camera.value, renderer.value.domElement);
+                transformControls_leftHand.size = 0.75;
+                transformControls_leftHand.space = 'world';
+                transformControls_leftHand.attach(leftHandBone);
+                scene.value.add(transformControls_leftHand.getHelper());
+                // disable orbitControls while using transformControls
+                transformControls_leftHand.addEventListener( 'mouseDown', () => orbitControls.value.enabled = false );
+                transformControls_leftHand.addEventListener( 'mouseUp', () => orbitControls.value.enabled = true );
+            
+                // 创建右腿的 TransformControls
+                const transformControls_rightLeg = new TransformControls(camera.value, renderer.value.domElement);
+                transformControls_rightLeg.size = 0.75;
+                transformControls_rightLeg.space = 'world';
+                transformControls_rightLeg.attach(rightFootBone);
+                scene.value.add(transformControls_rightLeg.getHelper());
+                // 禁用轨道控制，当使用 transformControls 时
+                transformControls_rightLeg.addEventListener('mouseDown', () => orbitControls.value.enabled = false);
+                transformControls_rightLeg.addEventListener('mouseUp', () => orbitControls.value.enabled = true);
+
+                // 创建左腿的 TransformControls
+                const transformControls_leftLeg = new TransformControls(camera.value, renderer.value.domElement);
+                transformControls_leftLeg.size = 0.75;
+                transformControls_leftLeg.space = 'world';
+                transformControls_leftLeg.attach(leftFootBone);
+                scene.value.add(transformControls_leftLeg.getHelper());
+                // 禁用轨道控制，当使用 transformControls 时
+                transformControls_leftLeg.addEventListener('mouseDown', () => orbitControls.value.enabled = false);
+                transformControls_leftLeg.addEventListener('mouseUp', () => orbitControls.value.enabled = true);
+
+            
             });
             
             // 设置相机位置
@@ -106,6 +145,18 @@ export default {
                 if (IKSolver.value) {
                     IKSolver.value.update();
                     // console.log("IKSolver updated")
+                }
+                if (LeftArmIKSolver.value) {
+                    LeftArmIKSolver.value.update();
+                    // console.log("RightArmIKSolver updated")
+                }
+                if (RightLegIKSolver.value) {
+                    RightLegIKSolver.value.update();
+                    // console.log("RightArmIKSolver updated")
+                }
+                if (LeftLegIKSolver.value) {
+                    LeftLegIKSolver.value.update();
+                    // console.log("RightArmIKSolver updated")
                 }
                 renderer.value.render(scene.value, camera.value);
             };
@@ -284,6 +335,74 @@ export default {
             IKSolver.value = new CCDIKSolver(mesh, iks);
             const ccdikhelper = new CCDIKHelper(mesh, iks, 0.1);
             scene.value.add(ccdikhelper);
+
+            const left_arm_iks = [
+                {
+                    target: 66, // 目标骨骼：右手
+                    effector: 10, // 效果器骨骼
+                    links: [
+                        {
+                            index: 9, // 右前臂
+                            rotationMin: new THREE.Vector3(-1.57, -1.57, -1.57),
+                            rotationMax: new THREE.Vector3(1.57, 1.57, 1.57)
+                        },
+                        {
+                            index: 8, // 右上臂
+                            rotationMin: new THREE.Vector3(-1.57, -1.57, -1.57),
+                            rotationMax: new THREE.Vector3(1.57, 1.57, 1.57)
+                        }
+                    ]
+                }
+            ];
+            LeftArmIKSolver.value = new CCDIKSolver(mesh, left_arm_iks);
+            const left_arm_ccdikhelper = new CCDIKHelper(mesh, left_arm_iks, 0.1);
+            scene.value.add(left_arm_ccdikhelper);
+
+            const left_leg_iks = [
+                {
+                    target: 67, // 目标骨骼：右手
+                    effector: 57, // 效果器骨骼
+                    links: [
+                        {
+                            index: 56, // 右前臂
+                            rotationMin: new THREE.Vector3(-1.57, -1.57, -1.57),
+                            rotationMax: new THREE.Vector3(1.57, 1.57, 1.57)
+                        },
+                        {
+                            index: 55, // 右上臂
+                            rotationMin: new THREE.Vector3(-1.57, -1.57, -1.57),
+                            rotationMax: new THREE.Vector3(1.57, 1.57, 1.57)
+                        }
+                    ]
+                }
+            ];
+            LeftLegIKSolver.value = new CCDIKSolver(mesh, left_leg_iks);
+            const left_leg_ccdikhelper = new CCDIKHelper(mesh, left_leg_iks, 0.1);
+            scene.value.add(left_leg_ccdikhelper);
+
+            const right_leg_iks = [
+                {
+                    target: 68, // 目标骨骼：右手
+                    effector: 62, // 效果器骨骼
+                    links: [
+                        {
+                            index: 61, // 右前臂
+                            rotationMin: new THREE.Vector3(-1.57, -1.75, -1.57),
+                            rotationMax: new THREE.Vector3(1.57, 1.57, 1.57)
+                        },
+                        {
+                            index: 60, // 右上臂
+                            rotationMin: new THREE.Vector3(-1.57, -1.57, -1.57),
+                            rotationMax: new THREE.Vector3(1.57, 1.57, 1.57)
+                        }
+                    ]
+                }
+            ];
+            RightLegIKSolver.value = new CCDIKSolver(mesh, right_leg_iks);
+            const right_leg_ccdikhelper = new CCDIKHelper(mesh, right_leg_iks, 0.1);
+            scene.value.add(right_leg_ccdikhelper);
+
+            
         };
 
         watch(skeletonOperations, (newOps) => {
